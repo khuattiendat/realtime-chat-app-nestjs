@@ -34,9 +34,10 @@ const UserLayout = () => {
     const [onlineUserIds, setOnlineUserIds] = useState([]);
 
     const params = useParams();
+    console.log(params)
     const navigate = useNavigate();
     const dispatch = useDispatch();
-    const {msgId} = params;
+    const {userId, groupId} = params;
     const userLoginTed = useSelector(state => state.user.user);
     const socketConnection = useSelector(state => state.user.socketConnection);
 
@@ -76,6 +77,7 @@ const UserLayout = () => {
         });
     };
     const buildRoomItems = (rooms = []) => {
+        console.log('Rooms:', rooms);
         return rooms.map(room => {
             return {
                 key: room.id,
@@ -176,7 +178,8 @@ const UserLayout = () => {
                         <Menu
                             theme="light"
                             mode="inline"
-                            defaultSelectedKeys={[msgId]}
+                            defaultSelectedKeys={[userId]}
+                            selectedKeys={[userId]}
                             items={items}
                         />
                         <Divider/>
@@ -186,7 +189,8 @@ const UserLayout = () => {
                         <Menu
                             theme="light"
                             mode="inline"
-                            defaultSelectedKeys={[msgId]}
+                            defaultSelectedKeys={[groupId]}
+                            selectedKeys={[groupId]}
                             items={itemsRooms}
                         />
                     </Spin>

@@ -12,6 +12,7 @@ import {redis} from "../utils/redis.provider";
 import {RoomsService} from "../rooms/rooms.service";
 import {payloadSendMessage} from "../utils/type";
 import {MessagesService} from "../messages/messages.service";
+import {UsersService} from "../users/users.service";
 
 @WebSocketGateway({cors: true})
 export class EventsGateway
@@ -19,7 +20,7 @@ export class EventsGateway
 
     @WebSocketServer() server: Server;
 
-    constructor(private roomService: RoomsService, private messageService: MessagesService) {
+    constructor(private roomService: RoomsService, private messageService: MessagesService, private userService: UsersService) {
     }
 
     private logger: Logger = new Logger('EventsGateway');
@@ -90,6 +91,43 @@ export class EventsGateway
                 this.server.to(socketId).emit('receiveMessage', newMessage);
             }
         }
+    }
 
+    @SubscribeMessage('thinking')
+    async handleThinking(
+        @MessageBody() data: { roomId: number, sender: number },
+        @ConnectedSocket() client: Socket,
+    ) {
+        const members = await this.roomService.getMembersInRoom(data.roomId);
+        const onlineMembers = await this.roomService.getOnlineUsersInRoom(members);
+        const userThinking = await this.userService.findOneById(data.sender);
+
+        for (const userId of onlineMembers) {
+            const sockets = await redis.smembers(`user:${userId}:sockets`);
+            for (const socketId of sockets) {
+                this.server.to(socketId).emit('thinking', {
+                    userThinking,
+                    roomId: data.roomId,
+                });
+            }
+        }
+    }
+
+    @SubscribeMessage('stopThinking')
+    async handleStopThinking(
+        @MessageBody() data: { roomId: number, sender: number },
+        @ConnectedSocket() client: Socket,
+    ) {
+        const members = await this.roomService.getMembersInRoom(data.roomId);
+        const onlineMembers = await this.roomService.getOnlineUsersInRoom(members);
+
+        for (const userId of onlineMembers) {
+            const sockets = await redis.smembers(`user:${userId}:sockets`);
+            for (const socketId of sockets) {
+                this.server.to(socketId).emit('stopThinking', {
+                    roomId: data.roomId,
+                });
+            }
+        }
     }
 }

@@ -21,6 +21,7 @@ const Message = () => {
     const chatContainerRef = useRef(null);
     const [userReceiver, setUserReceiver] = useState({});
     const [room, setRoom] = useState({});
+    const [userThinking, setUserThinking] = useState(null);
     const [loading, setLoading] = useState({
         getMessages: false,
         sendMessage: false,
@@ -39,8 +40,18 @@ const Message = () => {
                     sendMessage: false,
                 }));
             });
+            socket.on('thinking', (data) => {
+                if (data.roomId !== room.id || data.userThinking.id === userLoginTed.id) return;
+                setUserThinking(data.userThinking)
+            })
+            socket.on('stopThinking', (data) => {
+                if (data.roomId === room.id) {
+                    setUserThinking(null);
+                }
+            });
             return () => {
                 socket.off('receiveMessage');
+                socket.off('thinking');
             };
         }
 
@@ -128,6 +139,23 @@ const Message = () => {
     useEffect(() => {
         getMessageByRoom()
     }, [userId, groupId])
+    const handeInputFocus = () => {
+        if (socket) {
+            socket.emit('thinking', {
+                sender: userLoginTed.id,
+                roomId: room.id,
+            });
+        }
+    }
+    const handeInputBlur = () => {
+        if (socket) {
+            socket.emit('stopThinking', {
+                sender: userLoginTed.id,
+                roomId: room.id,
+            });
+            setUserThinking(null);
+        }
+    }
 
     return (
         <div className="chat-container">
@@ -210,6 +238,44 @@ const Message = () => {
                     )}
                     <div ref={messagesEndRef}/>
                 </div>
+                {
+                    userThinking && (
+                        <div
+                            className="user-thinking"
+                            style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                background: '#f0f2f5',
+                                padding: '8px 16px',
+                                borderRadius: '20px',
+                                margin: '12px 0',
+                                boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
+                                width: 'fit-content',
+                                maxWidth: '80%',
+                            }}
+                        >
+                            <Avatar
+                                icon={<UserOutlined/>}
+                                className="user-thinking__avatar"
+                                size="small"
+                                style={{marginRight: 10, background: '#1890ff', color: '#fff'}}
+                            />
+                            <span
+                                className="user-thinking__text"
+                                style={{fontStyle: 'italic', color: '#555', fontSize: 15}}
+                            >
+                               {userThinking.username} ...
+                           </span>
+                        </div>
+                    )
+                }
+                {
+                    loading.sendMessage && (
+                        <div className="py-1 d-flex justify-content-end me-3">
+                                <div className="">Đang gửi tin nhắn...</div>
+                        </div>
+                    )
+                }
 
                 <div className="input-area">
                     <form onSubmit={sendMessage}>
@@ -218,6 +284,8 @@ const Message = () => {
                                 value={content}
                                 onChange={(e) => setContent(e.target.value)}
                                 onKeyPress={handleKeyPress}
+                                onFocus={handeInputFocus}
+                                onBlur={handeInputBlur}
                                 placeholder="Nhập tin nhắn của bạn..."
                                 autoSize={{minRows: 1, maxRows: 4}}
                                 className="input-area__textarea"
